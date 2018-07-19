@@ -2,17 +2,23 @@
   "name": "ionic-log-file-appender",
   "author": "CellTrack Systems Pty Ltd",
   "homepage": "http://smartmovetaxis.com",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A simple rolling log file appender for Ionic Cordova",
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts",
+  "files": ["dist"],
   "scripts": {
-    "clean": "ionic-app-scripts clean",
-    "build": "ionic-app-scripts build",
-    "ionic:build": "ionic-app-scripts build",
-    "ionic:serve": "ionic-app-scripts serve",
+    "build": "tsc",
     "test": "karma start ./test-config/karma.conf.js",
     "test-ci": "karma start ./test-config/karma.conf.js --single-run",
-    "test-coverage": "karma start ./test-config/karma.conf.js --coverage"
+    "test-coverage": "karma start ./test-config/karma.conf.js --coverage",
+    "publish-package": "npm run build && npm publish"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SmartMoveSystems/ionicLogFileAppender.git"
+  },
+  "license": "MIT",
   "dependencies": {
     "@angular/common": "5.0.3",
     "@angular/compiler": "5.0.3",
@@ -50,6 +56,6 @@
     "protractor": "^5.1.1",
     "ts-loader": "^3.0.3",
     "ts-node": "^3.0.2",
-    "typescript": "2.4.2"
+    "typescript": "^2.4.2"
   }
 }

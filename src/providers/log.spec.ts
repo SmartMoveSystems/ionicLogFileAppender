@@ -33,13 +33,14 @@ describe('File log appender provider', () => {
   });
 
   it('should create a file on initialisation', (done) => {
-    log.getLogFiles()
-      .then((files: Entry[]) => {
-        expect(files).toBeDefined();
-        expect(files.length).toEqual(1);
-        done();
-      });
+    log.init().then(() => {
+      log.getLogFiles()
+        .then((files: Entry[]) => {
+          expect(files).toBeDefined();
+          expect(files.length).toEqual(1);
+          done();
+        });
+    });
   });
-
 
 });
