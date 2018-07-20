@@ -2,7 +2,7 @@ import {DatePipe} from '@angular/common';
 import {Entry, File} from '@ionic-native/file';
 import {Platform} from 'ionic-angular';
 import {PlatformMock} from 'ionic-mocks';
-import {FileMock} from '../mocks/FileMock';
+import {FileMock} from './mocks/FileMock';
 import {LogProvider, LogProviderConfig} from './log';
 
 describe('File log appender provider', () => {

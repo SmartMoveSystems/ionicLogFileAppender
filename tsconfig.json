@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
-    "declaration": false,
+    "declaration": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "lib": [
@@ -19,6 +19,7 @@
   ],
   "exclude": [
     "node_modules",
+    "src/mocks",
     "src/**/*.spec.ts"
   ],
   "compileOnSave": false,
