@@ -6,7 +6,7 @@ Simple log file appender for Ionic 3.
 
 ## Installation
 ```bash
-npm install --save-dev ionic-file-log-appender
+npm install --save ionic-file-log-appender
 ```
 
 ## Configuration
