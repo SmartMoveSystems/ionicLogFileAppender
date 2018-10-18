@@ -6,8 +6,14 @@ Simple log file appender for Ionic 3.
 
 ## Installation
 ```bash
-npm install --save ionic-file-log-appender
+npm install --save ionic-log-file-appender
 ```
+
+## Dependencies:
+
+Ionic Native File:
+
+https://ionicframework.com/docs/native/file/
 
 ## Configuration
 
@@ -75,7 +81,7 @@ export function provideLogger(file: File, platform: Platform, datePipe: DatePipe
   /**
    * Provider for persistent file logging services
    */
-  return new LogProvider(file, platform, datePipe, new LogProviderConfig(new LoggingProviderConfig{/*your config here*/}));
+  return new LogProvider(file, platform, datePipe, new LogProviderConfig({/*your config here*/}));
 }
 
 @NgModule({
@@ -88,7 +94,6 @@ export function provideLogger(file: File, platform: Platform, datePipe: DatePipe
   providers: [
       ...
       File,
-      Platform,
       DatePipe,
       { provide: LogProvider, useFactory: provideLogger, deps: [File, Platform, DatePipe] },
       ...
