@@ -177,7 +177,7 @@ export class LogProvider {
             .then(() => {
                 this.debug_metaLog('Entry successfully removed');
                 // Remove oldest entry
-                entries.unshift();
+                entries.shift();
                 // Check again
                 return this.cleanupFiles(entries);
             })
