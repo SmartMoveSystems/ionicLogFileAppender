@@ -89,7 +89,7 @@ export class LogProvider {
      * Attempts to initialise the current log file
      * @returns {Promise<Entry[] | void>} upon completion or failure
      */
-    private initLogFile() {
+    private initLogFile(): Promise<any> {
         this.debug_metaLog('Attempting to initialise log file');
         return this.file.listDir(this.file.dataDirectory, this.config.logDir)
             .then((entries: Entry[]) => {
@@ -102,7 +102,8 @@ export class LogProvider {
                 }
             })
             .catch(err => {
-                this.debug_metaLog('Failed to get file list: ' + JSON.stringify(err));
+                this.debug_metaLog('Failed to get file list: ' + JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                throw err;
             });
     }
 
@@ -111,58 +112,69 @@ export class LogProvider {
      * @param {Entry[]} entries the files found in the logging directory
      * @returns {Promise<number>} upon completion or failure
      */
-    private cleanupFiles(entries: Entry[]): Promise<any> {
+    private async cleanupFiles(entries: Entry[]): Promise<any> {
         this.debug_metaLog('Starting cleanup of ' + entries.length + ' log files');
         entries = _.filter(entries, (entry: Entry) => entry.isFile && entry.name.startsWith(this.config.logPrefix));
+        if (entries.length === 0) {
+          return Promise.resolve();
+        }
         entries = _.orderBy(entries, ['name'],['asc']);
-        return new Promise((resolve, reject) => {
-            let total = entries.length;
-            let calculated = 0;
-            let sizeTotal = 0;
+        let total = entries.length;
+        let calculated = 0;
+        let sizeTotal = 0;
+        try {
             // Loop over entries
             for (let entry of entries) {
-                if (entry.isFile) {
-                    entry.getMetadata(metadata => {
-                        // Calculate total size of log files
-                        calculated++;
-                        sizeTotal += metadata.size;
-                        this.debug_metaLog('After ' + calculated + ' files, total size is ' + sizeTotal);
-                        if (calculated === total) {
-                            if (sizeTotal > this.config.totalLogSize) {
-                                this.debug_metaLog('Total log file size exceeds limit: ' + sizeTotal);
-                                this.maxSizeExceeded(entries, metadata.size, resolve, reject);
-                            } else {
-                                this.debug_metaLog('Total log file size is ok: ' + sizeTotal);
-                                // Below max size, so we're ready to go
-                                const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
-                                this.cleanupCompleted(lastEntry, metadata.size, null)
-                                    .then(index => {
-                                        //All done!
-                                        resolve();
-                                    })
-                                    .catch(err => {
-                                        // Now we're well and truly buggered
-                                        this.initFailed = true;
-                                        reject(err);
-                                    });
-                            }
-                        }
-                    }, failure => {
-                        const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
-                        // Not much we can do except try to continue
-                        this.cleanupCompleted(lastEntry, 0, 'SEVERE ERROR: could not retrieve metadata. ' + JSON.stringify(failure))
-                            .then(() => {
-                                resolve()
-                            })
-                            .catch(err => {
-                                // Now we're in real trouble
-                                this.initFailed = true;
-                                reject(err);
-                            });
-                    })
+                const size = await this.getFileSize(entry);
+                // Calculate total size of log files
+                calculated++;
+                sizeTotal += size;
+                this.debug_metaLog('After ' + calculated + ' files, total size is ' + sizeTotal);
+                if (sizeTotal > this.config.totalLogSize) {
+                    this.debug_metaLog('Total log file size exceeds limit: ' + sizeTotal);
+                    return this.maxSizeExceeded(entries, size)
+                        .catch(err => {
+                          // Now we're well and truly buggered
+                          this.initFailed = true;
+                          throw err;
+                        });
+                } else if (calculated === total) {
+                    this.debug_metaLog('Total log file size is ok: ' + sizeTotal);
+                    // Below max size, so we're ready to go
+                    const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
+                    return this.cleanupCompleted(lastEntry, size, null)
+                        .catch(err => {
+                          // Now we're well and truly buggered
+                          this.initFailed = true;
+                          throw err;
+                        });
                 }
             }
-        });
+        } catch(failure) {
+            const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
+            // Not much we can do except try to continue
+            return this.cleanupCompleted(lastEntry, 0, failure)
+                .catch(err => {
+                    // Now we're in real trouble
+                    this.initFailed = true;
+                    throw err;
+                });
+        }
+    }
+
+  /**
+   * Wraps getMetadata in a Promise
+   * @param {Entry} entry
+   * @returns {Promise<number>}
+   */
+    private async getFileSize(entry: Entry): Promise<number> {
+      return new Promise((resolve: ((number) => void), reject) => {
+      entry.getMetadata(metadata => {
+          resolve(metadata.size);
+        }, failure => {
+          reject('SEVERE ERROR: could not retrieve metadata. ' + JSON.stringify(failure));
+        })
+      });
     }
 
     /**
@@ -172,8 +184,8 @@ export class LogProvider {
      * @param resolve
      * @param reject
      */
-    private maxSizeExceeded(entries: Entry[], lastEntrySize: number, resolve, reject) {
-        this.removeFile(entries[0])
+    private maxSizeExceeded(entries: Entry[], lastEntrySize: number): Promise<any> {
+        return this.removeFile(entries[0])
             .then(() => {
                 this.debug_metaLog('Entry successfully removed');
                 // Remove oldest entry
@@ -184,13 +196,7 @@ export class LogProvider {
             .catch(err => {
                 const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
                 // Not much we can do except try to continue
-                this.cleanupCompleted(lastEntry, lastEntrySize, 'SEVERE ERROR: could not clean up old files. ' + err)
-                    .then(() => resolve())
-                    .catch(err => {
-                        // Now we're well and truly buggered
-                        this.initFailed = true;
-                        reject(err);
-                    });
+                return this.cleanupCompleted(lastEntry, lastEntrySize, 'SEVERE ERROR: could not clean up old files. ' + err);
             })
     }
 
@@ -209,8 +215,8 @@ export class LogProvider {
             if (error) {
                 this.log(error);
             }
-            this.debug_metaLog('File logger initialised at file: ' + this.currentFile.fullPath);
-            this.log('File logger initialised: ' + this.currentFile.fullPath);
+            this.debug_metaLog('File logger initialised at existing file: ' + this.currentFile.fullPath);
+            this.log('File logger initialised at existing file: ' + this.currentFile.name);
             return Promise.resolve();
         } else {
             this.debug_metaLog('Last file nonexistent or too large. Creating new log file');
@@ -220,8 +226,9 @@ export class LogProvider {
                     if (error) {
                         this.log(error);
                     }
-                    this.debug_metaLog('File logger initialised with at file' + this.currentFile.fullPath);
-                    this.log('File logger initialised at file' + this.currentFile.name);
+                    this.debug_metaLog('File logger initialised at new file: ' + this.currentFile.fullPath);
+                    this.log('File logger initialised at new file: ' + this.currentFile.name);
+                    return Promise.resolve();
                 });
         }
     }
@@ -252,8 +259,7 @@ export class LogProvider {
         if (this.initFailed) {
             this.debug_metaLog('File logger init has failed! Message discarded');
             return;
-        }
-        else {
+        } else {
             // Put the message on the queue
             this.queue.push(logMessage);
             if (this.fileLoggerReady) {
@@ -297,8 +303,9 @@ export class LogProvider {
                         });
                 }
             })
-            .catch(err => {
+          .catch(err => {
                 this.debug_metaLog('Error processing queue: ' + err);
+                this.processing = false;
             });
     }
 
@@ -350,7 +357,7 @@ export class LogProvider {
     /**
      * Creates the next log file and updates the local reference
      */
-    private createNextFile() {
+    private createNextFile(): Promise<any> {
         const fileName = this.createLogFileName();
         this.debug_metaLog('Attempting to create file at: ' + this.file.dataDirectory + this.config.logDir + '/' + fileName);
         return this.file.createFile(this.file.dataDirectory + '/' + this.config.logDir, fileName, false)
@@ -371,7 +378,7 @@ export class LogProvider {
     getLogFiles(): Promise<Entry[]> {
         this.debug_metaLog('Attempting to retrieve log files');
         if (this.initFailed) {
-            this.debug_metaLog('Log never initialised so can\'t send files');
+            this.debug_metaLog('Log never initialised so can\'t retrieve files');
             return Promise.resolve([]);
         } else {
             return this.file.listDir(this.file.dataDirectory, this.config.logDir);

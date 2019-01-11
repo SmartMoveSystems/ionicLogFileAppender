@@ -29,7 +29,7 @@ module.exports = function(config) {
     },
 
     browserConsoleLogOptions: {
-      level: 'log',
+      level: '',
       format: '%b %T: %m',
       terminal: true
     },
