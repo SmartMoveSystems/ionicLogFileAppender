@@ -28,6 +28,8 @@ describe('File log appender provider', () => {
 
   it('should verify log provider instantiated', () => {
     expect(log).toBeDefined();
+    expect(log.isReady()).toBeFalsy();
+
   });
 
   it('should check the log provider initialises correctly based on platform', (done) => {
@@ -44,6 +46,7 @@ describe('File log appender provider', () => {
         .then((files: Entry[]) => {
           expect(files).toBeDefined();
           expect(files.length).toEqual(1);
+          expect(log.isReady()).toBeTruthy();
           done();
         });
     });
@@ -64,6 +67,7 @@ describe('File log appender provider', () => {
               console.log(file.name)
             }
             expect(files.length).toEqual(3);
+            expect(log.isReady()).toBeTruthy();
             done();
           });
       })
@@ -77,10 +81,29 @@ describe('File log appender provider', () => {
     log.init()
       .then(() => {
         console.log('TEST: logger finished initialising');
+        expect(log.isReady()).toBeTruthy();
         log.getLogFiles()
           .then((files: Entry[]) => {
             expect(files).toBeDefined();
             expect(files.length).toEqual(2);
+            done();
+          });
+      })
+  });
+
+  it('should cleanup files correctly when single file exceeds maximum size', (done) => {
+    // Set the file size to be just over the rollover size
+    FileMock.setFileSize(config.totalLogSize +1);
+    // Create three dummy files. Total size will exceed max allowed
+    FileMock.generateFiles(fileMock.dataDirectory + config.logDir, config.logPrefix, 1);
+    log.init()
+      .then(() => {
+        console.log('TEST: logger finished initialising');
+        expect(log.isReady()).toBeTruthy();
+        log.getLogFiles()
+          .then((files: Entry[]) => {
+            expect(files).toBeDefined();
+            expect(files.length).toEqual(1);
             done();
           });
       })

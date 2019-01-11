@@ -48,6 +48,7 @@ export class LogProvider {
      * @returns Promise<any> upon completion or failure
      */
     init(): Promise<any> {
+      this.fileLoggerReady = false;
         this.debug_metaLog('Initialising file logger');
         this.log('Initialising file logger');
         if (!this.platform.is('cordova'))
@@ -66,6 +67,10 @@ export class LogProvider {
                 this.debug_metaLog('Could not find logging directory: ' + JSON.stringify(err));
                 return this.createLogDir();
             });
+    }
+
+    isReady(): boolean {
+      return this.fileLoggerReady;
     }
 
     /**
@@ -116,7 +121,12 @@ export class LogProvider {
         this.debug_metaLog('Starting cleanup of ' + entries.length + ' log files');
         entries = _.filter(entries, (entry: Entry) => entry.isFile && entry.name.startsWith(this.config.logPrefix));
         if (entries.length === 0) {
-          return Promise.resolve();
+            return this.cleanupCompleted(null, 0, null)
+                .catch(err => {
+                  // Now we're well and truly buggered
+                  this.initFailed = true;
+                  throw err;
+                });
         }
         entries = _.orderBy(entries, ['name'],['asc']);
         let total = entries.length;
