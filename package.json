@@ -2,7 +2,7 @@
   "name": "ionic-log-file-appender",
   "author": "CellTrack Systems Pty Ltd",
   "homepage": "http://smartmovetaxis.com",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "description": "A simple rolling log file appender for Ionic Cordova",
   "main": "./dist/log.js",
   "typings": "./dist/log.d.ts",
