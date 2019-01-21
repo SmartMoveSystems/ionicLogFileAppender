@@ -77,7 +77,7 @@ export class LogProvider {
      * Attempts to create the logging directory
      * @returns {Promise<Entry[] | void>} upon completion or failure
      */
-    private createLogDir() {
+    private createLogDir(): Promise<any> {
         this.debug_metaLog('Attempting to create logging directory');
         return this.file.createDir(this.file.dataDirectory, this.config.logDir, false)
             .then(() => {
@@ -248,7 +248,7 @@ export class LogProvider {
      * @param {Entry} entry
      * @returns {Promise<RemoveResult>}
      */
-    private removeFile(entry: Entry) {
+    private removeFile(entry: Entry): Promise<any> {
         this.debug_metaLog('Removing file: ' + entry.fullPath);
         const fullPath = entry.fullPath;
         const path = fullPath.replace(entry.name, '');
@@ -258,13 +258,18 @@ export class LogProvider {
     /**
      * Puts the message on the queue for writing to file
      * @param {string} message
+     * @param {boolean} err. If true, logging is at error level
      */
-    log(message: string) {
+    private logInternal(message: string, err?: boolean): void {
         const date = new Date();
         const dateString = this.datePipe.transform(date, this.config.logDateFormat);
         const logMessage = '[' + dateString + '] ' + message + '\r\n';
         if (this.config.logToConsole) {
-            console.log(logMessage);
+            if (err) {
+              console.error(logMessage);
+            } else {
+              console.log(logMessage);
+            }
         }
         if (this.initFailed) {
             this.debug_metaLog('File logger init has failed! Message discarded');
@@ -283,20 +288,41 @@ export class LogProvider {
         }
     }
 
+  /**
+   * Logs a message at info level
+   * @param {string} message
+   */
+    log(message: string): void {
+      this.logInternal(message, false);
+    }
+
     /**
      * Developer-level logging
      * @param {string} message
      */
-    logDev(message: string) {
+    logDev(message: string): void {
         if (this.config.devMode) {
             this.log('*DEBUG* ' + message);
         }
     }
 
+  /**
+   * Error-level logging with optional error object
+   * @param {string} message
+   * @param error
+   */
+    err(message: string, error?: any): void {
+        let logMessage = 'ERROR! ' + message;
+        if (error) {
+            logMessage += ': ' + JSON.stringify(error, Object.getOwnPropertyNames(error));
+        }
+        this.logInternal(logMessage, true);
+    }
+
     /**
      * Writes the current logging queue to file
      */
-    private doProcess() {
+    private doProcess(): void {
         this.debug_metaLog('Beginning processing loop');
         this.processQueue()
             .then(() => {
@@ -323,7 +349,7 @@ export class LogProvider {
      * Writes the oldest entry in the queue to file, then checks if file rollover is required
      * @returns {Promise<void>}
      */
-    private processQueue() {
+    private processQueue(): Promise<any> {
         this.debug_metaLog('Processing queue of length ' + this.queue.length);
         if (this.queue.length > 0) {
             const message = this.queue.shift();
@@ -338,6 +364,8 @@ export class LogProvider {
                 .catch(err => {
                     this.debug_metaLog('Error writing to file: ' + err);
                 });
+        } else {
+          return Promise.resolve();
         }
     }
 
@@ -345,7 +373,7 @@ export class LogProvider {
      * Checks the file length and creates a new file if required
      * @returns {any}
      */
-    private checkFileLength() {
+    private checkFileLength(): Promise<any> {
         if (this.lines >= this.config.fileMaxLines) {
             this.debug_metaLog('Creating new file as max number of log entries exceeded');
             return this.createNextFile();
@@ -395,7 +423,7 @@ export class LogProvider {
         }
     }
 
-    private debug_metaLog(message: string) {
+    private debug_metaLog(message: string): void {
         if (this.config.enableMetaLogging) {
             console.log('**LOGGER_META**: ' + message);
         }

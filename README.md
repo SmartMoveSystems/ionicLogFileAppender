@@ -119,6 +119,9 @@ export class SomeClass {
   doSomething() {
     this.log.log('Something has been done!');
     this.log.logDev('Something has been done, but will only be logged in if devMode is true');
+    const errorObj = {message: 'FooBar error', code: 128};
+    this.log.err('Something unexpected happened and the error object will be printed', errorObj);
+    this.log.err('Something unexpected happened and the error object will not be printed');
   }
   
   getTheLogs() {
