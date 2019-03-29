@@ -1,0 +1,27 @@
+{
+  "name": "ionic-log-file-appender",
+  "author": "CellTrack Systems Pty Ltd",
+  "homepage": "http://smartmovetaxis.com",
+  "version": "1.1.2",
+  "description": "A simple rolling log file appender for Ionic Cordova",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SmartMoveSystems/ionicLogFileAppender.git"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@angular/common": "5.2.11",
+    "@angular/compiler": "5.2.11",
+    "@angular/compiler-cli": "5.2.11",
+    "@angular/core": "5.2.11",
+    "@angular/forms": "5.2.11",
+    "@angular/platform-browser": "5.2.11",
+    "@angular/platform-browser-dynamic": "5.2.11",
+    "@ionic-native/core": "4.7.0",
+    "@ionic-native/file": "^4.10.0",
+    "ionic-angular": "3.9.2",
+    "rxjs": "5.5.2",
+    "sw-toolbox": "3.6.0",
+    "zone.js": "0.8.18"
+  }
+}

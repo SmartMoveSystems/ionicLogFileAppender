@@ -9,7 +9,7 @@ Simple log file appender for Ionic 3.
 npm install --save ionic-log-file-appender
 ```
 
-## Dependencies:
+## Dependencies
 
 Ionic Native File:
 
@@ -17,7 +17,7 @@ https://ionicframework.com/docs/native/file/
 
 ## Configuration
 
-Logging configuration is specified by passing a ```LogProviderConfig``` object into the constructor of the ```LogProvider```.
+Logging configuration is specified by passing a ```ILogProviderConfig``` object into the init function of the ```LogProvider```.
 
 ```typescript
 {
@@ -51,6 +51,9 @@ Logging configuration is specified by passing a ```LogProviderConfig``` object i
 
   // Developer-level logging will appear in log files if true
   devMode: boolean;
+  
+  // Name of directory in which to create log directory
+  baseDir: string;
 }
 ```
 
@@ -67,27 +70,34 @@ Any values not specified in the passed-in value will be set to the defaults belo
   totalLogSize: 5000000,
   logDir: 'logs',
   logPrefix: 'log',
-  devMode: false
+  devMode: false,
+  baseDir: <dataDirectory>
 }
 ```
 
-## Reference in Application module:
+where dataDirectory is defined by the Ionic File plugin.
+
+## Reference in Application module
 
 ```typescript
 import {File} from '@ionic-native/file';
-import {LogProvider, LogProviderConfig} from 'ionic-log-file-appender';
+import {Platform} from 'ionic-angular';
+import {DatePipe} from '@angular/common';
+import {LogProvider, LogFileAppenderModule} from 'ionic-log-file-appender';
 
-export function provideLogger(file: File, platform: Platform, datePipe: DatePipe) {
-  /**
-   * Provider for persistent file logging services
-   */
-  return new LogProvider(file, platform, datePipe, new LogProviderConfig({/*your config here*/}));
-}
+...
+
 
 @NgModule({
   declarations: [
     MyApp
   ],
+  imports: [
+    ...
+    LogFileAppenderModule.forRoot(),
+    ...
+  ]
+  
   
   ...
   
@@ -95,17 +105,19 @@ export function provideLogger(file: File, platform: Platform, datePipe: DatePipe
       ...
       File,
       DatePipe,
-      { provide: LogProvider, useFactory: provideLogger, deps: [File, Platform, DatePipe] },
+      LogProvider,
       ...
   ]
 })
 export class AppModule { }
 ```
 
-## Initialisation in application component:
+## Initialisation in application component
 ```typescript
   platform.ready().then(() => {
-    return log.init();
+    return log.init({
+      /* Your config here */
+    });
   });
 ```
 

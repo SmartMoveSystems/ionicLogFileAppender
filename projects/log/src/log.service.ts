@@ -3,6 +3,7 @@ import {Entry, File} from '@ionic-native/file';
 import {Injectable} from '@angular/core';
 import {Platform} from 'ionic-angular';
 import * as _ from 'lodash'
+import {ILogProviderConfig} from './config';
 
 /**
  * SmartMove Ionic rolling log file appender
@@ -18,7 +19,14 @@ export class LogProvider {
     private queue: string[] = [];
     private processing = false;
 
-    private defaultConfig = new LogProviderConfig({
+    private readonly defaultConfig: LogProviderConfig;
+
+    private config: LogProviderConfig;
+
+    constructor(private file: File,
+                private platform: Platform,
+                private datePipe: DatePipe) {
+      this.defaultConfig = new LogProviderConfig({
         enableMetaLogging: false,
         logToConsole: false,
         logDateFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
@@ -26,28 +34,23 @@ export class LogProvider {
         fileMaxLines: 2000,
         fileMaxSize: 1000000,
         totalLogSize: 5000000,
+        baseDir: this.file.dataDirectory,
         logDir: 'logs',
         logPrefix: 'log',
         devMode: false
-    });
-
-    private config: LogProviderConfig;
-
-    constructor(private file: File,
-                private platform: Platform,
-                private datePipe: DatePipe,
-                configuration: LogProviderConfig) {
-        this.config = configuration;
-        // Any configuration not specified will take the defaults
-        this.config.merge(this.defaultConfig);
-        this.debug_metaLog('LogProvider initialised with configuration: ' + JSON.stringify(this.config));
+      });
+      this.config = this.defaultConfig;
     }
 
     /**
      * Initializes the file logger
-     * @returns Promise<any> upon completion or failure
      */
-    init(): Promise<any> {
+    init(configuration: ILogProviderConfig): Promise<any> {
+
+      this.config = new LogProviderConfig(configuration);
+      // Any configuration not specified will take the defaults
+      this.config.merge(this.defaultConfig);
+      this.debug_metaLog('LogProvider initialised with configuration: ' + JSON.stringify(this.config));
       this.fileLoggerReady = false;
         this.debug_metaLog('Initialising file logger');
         this.log('Initialising file logger');
@@ -57,8 +60,8 @@ export class LogProvider {
             this.initFailed = true;
             return Promise.resolve();
         }
-        this.debug_metaLog('Data directory: ' + this.file.dataDirectory);
-        return this.file.checkDir(this.file.dataDirectory, this.config.logDir)
+        this.debug_metaLog('Data directory: ' + this.config.baseDir);
+        return this.file.checkDir(this.config.baseDir, this.config.logDir)
             .then(() => {
                 this.debug_metaLog('Found logging directory');
                 return this.initLogFile();
@@ -75,11 +78,10 @@ export class LogProvider {
 
     /**
      * Attempts to create the logging directory
-     * @returns {Promise<Entry[] | void>} upon completion or failure
      */
     private createLogDir(): Promise<any> {
         this.debug_metaLog('Attempting to create logging directory');
-        return this.file.createDir(this.file.dataDirectory, this.config.logDir, false)
+        return this.file.createDir(this.config.baseDir, this.config.logDir, false)
             .then(() => {
                 this.debug_metaLog('Successfully created logging directory');
                 return this.initLogFile();
@@ -92,11 +94,11 @@ export class LogProvider {
 
     /**
      * Attempts to initialise the current log file
-     * @returns {Promise<Entry[] | void>} upon completion or failure
+     * @returns a promise upon completion or failure
      */
     private initLogFile(): Promise<any> {
         this.debug_metaLog('Attempting to initialise log file');
-        return this.file.listDir(this.file.dataDirectory, this.config.logDir)
+        return this.file.listDir(this.config.baseDir, this.config.logDir)
             .then((entries: Entry[]) => {
                 if (entries && entries.length > 0) {
                     this.debug_metaLog(entries.length + ' existing log files found.');
@@ -114,12 +116,11 @@ export class LogProvider {
 
     /**
      * Checks the total size of log files against the configured maximum size and deletes oldest if necessary
-     * @param {Entry[]} entries the files found in the logging directory
-     * @returns {Promise<number>} upon completion or failure
+     * @param entries the files found in the logging directory
      */
     private async cleanupFiles(entries: Entry[]): Promise<any> {
         this.debug_metaLog('Starting cleanup of ' + entries.length + ' log files');
-        entries = _.filter(entries, (entry: Entry) => entry.isFile && entry.name.startsWith(this.config.logPrefix));
+        entries = _.filter(entries, (entry: Entry) => entry.isFile && entry.name && entry.name.startsWith(this.config.logPrefix));
         if (entries.length === 0) {
             return this.cleanupCompleted(null, 0, null)
                 .catch(err => {
@@ -174,8 +175,8 @@ export class LogProvider {
 
   /**
    * Wraps getMetadata in a Promise
-   * @param {Entry} entry
-   * @returns {Promise<number>}
+   * @param entry
+   * @returns a promise
    */
     private async getFileSize(entry: Entry): Promise<number> {
       return new Promise((resolve: ((number) => void), reject) => {
@@ -189,8 +190,8 @@ export class LogProvider {
 
     /**
      * Attempts to remove one file and recursively check total size again
-     * @param {Entry[]} entries
-     * @param {number} lastEntrySize
+     * @param entries
+     * @param lastEntrySize
      * @param resolve
      * @param reject
      */
@@ -212,10 +213,9 @@ export class LogProvider {
 
     /**
      * When file cleanup is completed, attempts to initialise config to point to current log file
-     * @param {Entry} lastEntry The most recent existing log file
-     * @param {number} lastEntrySize The size of the most recent existing log file
-     * @param {string} error Any error to be logged after initialization
-     * @returns {Promise<any>}
+     * @param lastEntry The most recent existing log file
+     * @param lastEntrySize The size of the most recent existing log file
+     * @param error Any error to be logged after initialization
      */
     private cleanupCompleted(lastEntry: Entry, lastEntrySize: number, error: string): Promise<any> {
         this.debug_metaLog('Log file cleanup done');
@@ -245,20 +245,19 @@ export class LogProvider {
 
     /**
      * Attempts to remove a file
-     * @param {Entry} entry
-     * @returns {Promise<RemoveResult>}
+     * @param entry
      */
     private removeFile(entry: Entry): Promise<any> {
         this.debug_metaLog('Removing file: ' + entry.fullPath);
         const fullPath = entry.fullPath;
         const path = fullPath.replace(entry.name, '');
-        return this.file.removeFile(this.file.dataDirectory + path, entry.name);
+        return this.file.removeFile(this.config.baseDir + path, entry.name);
     }
 
     /**
      * Puts the message on the queue for writing to file
-     * @param {string} message
-     * @param {boolean} err. If true, logging is at error level
+     * @param message
+     * @param err. If true, logging is at error level
      */
     private logInternal(message: string, err?: boolean): void {
         const date = new Date();
@@ -288,17 +287,17 @@ export class LogProvider {
         }
     }
 
-  /**
-   * Logs a message at info level
-   * @param {string} message
-   */
+    /**
+     * Logs a message at info level
+     * @param message
+     */
     log(message: string): void {
       this.logInternal(message, false);
     }
 
     /**
      * Developer-level logging
-     * @param {string} message
+     * @param message
      */
     logDev(message: string): void {
         if (this.config.devMode) {
@@ -308,7 +307,7 @@ export class LogProvider {
 
   /**
    * Error-level logging with optional error object
-   * @param {string} message
+   * @param message
    * @param error
    */
     err(message: string, error?: any): void {
@@ -347,13 +346,12 @@ export class LogProvider {
 
     /**
      * Writes the oldest entry in the queue to file, then checks if file rollover is required
-     * @returns {Promise<void>}
      */
     private processQueue(): Promise<any> {
         this.debug_metaLog('Processing queue of length ' + this.queue.length);
         if (this.queue.length > 0) {
             const message = this.queue.shift();
-            return this.file.writeFile(this.file.dataDirectory + '/' + this.config.logDir, this.currentFile.name, message, {
+            return this.file.writeFile(this.config.baseDir + '/' + this.config.logDir, this.currentFile.name, message, {
                 append: true,
                 replace: false
             })
@@ -371,7 +369,6 @@ export class LogProvider {
 
     /**
      * Checks the file length and creates a new file if required
-     * @returns {any}
      */
     private checkFileLength(): Promise<any> {
         if (this.lines >= this.config.fileMaxLines) {
@@ -384,7 +381,6 @@ export class LogProvider {
 
     /**
      * Generates a log file name from the current time
-     * @returns {string}
      */
     private createLogFileName(): string {
         const date = new Date();
@@ -397,8 +393,8 @@ export class LogProvider {
      */
     private createNextFile(): Promise<any> {
         const fileName = this.createLogFileName();
-        this.debug_metaLog('Attempting to create file at: ' + this.file.dataDirectory + this.config.logDir + '/' + fileName);
-        return this.file.createFile(this.file.dataDirectory + '/' + this.config.logDir, fileName, false)
+        this.debug_metaLog('Attempting to create file at: ' + this.config.baseDir + this.config.logDir + '/' + fileName);
+        return this.file.createFile(this.config.baseDir + '/' + this.config.logDir, fileName, false)
             .then(newFile => {
                 this.lines = 0;
                 this.currentFile = newFile;
@@ -411,7 +407,6 @@ export class LogProvider {
 
     /**
      * Retrieves the current list of log files in the logging directory
-     * @returns {Promise<Entry[]>}
      */
     getLogFiles(): Promise<Entry[]> {
         this.debug_metaLog('Attempting to retrieve log files');
@@ -419,7 +414,7 @@ export class LogProvider {
             this.debug_metaLog('Log never initialised so can\'t retrieve files');
             return Promise.resolve([]);
         } else {
-            return this.file.listDir(this.file.dataDirectory, this.config.logDir);
+            return this.file.listDir(this.config.baseDir, this.config.logDir);
         }
     }
 
@@ -430,7 +425,7 @@ export class LogProvider {
     }
 }
 
-export class LogProviderConfig {
+class LogProviderConfig implements ILogProviderConfig {
     // If true, logs verbose details of file logging operations to console
     enableMetaLogging: boolean;
 
@@ -453,8 +448,11 @@ export class LogProviderConfig {
     // If the total size of all log files exceeds this size on initialisation, oldest files will be removed
     totalLogSize: number;
 
-    // Name of directory to create for logs, within application's data directory
+    // Name of directory to create for logs, within the baseDir
     logDir: string;
+
+    // Name of directory in which to create log directory
+    baseDir: string;
 
     // Prefix for log files
     logPrefix: string;
@@ -475,10 +473,10 @@ export class LogProviderConfig {
      * @param config
      */
     merge(config: any) {
-        for (let k in config) {
-            if (!(k in this)) {
-                this[k] = config[k];
-            }
+      for (let k in config) {
+        if (!(k in this)) {
+          this[k] = config[k];
         }
+      }
     }
 }

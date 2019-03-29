@@ -15,12 +15,13 @@
     "outDir": "./dist"
   },
   "include": [
-    "src/**/*.ts"
+    "projects/log/src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "src/mocks",
-    "src/**/*.spec.ts"
+    "projects/log/src/mocks",
+    "projects/log/src/test.ts",
+    "projects/log/src/**/*.spec.ts"
   ],
   "compileOnSave": false,
   "atom": {

@@ -2,8 +2,9 @@ import {DatePipe} from '@angular/common';
 import {Entry, File} from '@ionic-native/file';
 import {Platform} from 'ionic-angular';
 import {PlatformMock} from 'ionic-mocks';
-import {FileMock} from './mocks/FileMock';
-import {LogProvider, LogProviderConfig} from './log';
+import {FileMock} from '../mocks/FileMock';
+import {ILogProviderConfig} from './config';
+import {LogProvider} from './log.service';
 
 describe('File log appender provider', () => {
   let file: File;
@@ -11,11 +12,11 @@ describe('File log appender provider', () => {
   let platform: Platform;
   let datePipe: DatePipe;
   let log: LogProvider;
-  const config = new LogProviderConfig({
+  const config: ILogProviderConfig = {
     enableMetaLogging: true,
     logToConsole: true,
     devMode: true,
-  });
+  };
 
   beforeEach(() => {
     file = FileMock.instance();
@@ -23,7 +24,7 @@ describe('File log appender provider', () => {
     platform = PlatformMock.instance();
     datePipe = new DatePipe('en-US');
 
-    log = new LogProvider(file, platform, datePipe, config)
+    log = new LogProvider(file, platform, datePipe)
   });
 
   it('should verify log provider instantiated', () => {
@@ -33,7 +34,7 @@ describe('File log appender provider', () => {
   });
 
   it('should check the log provider initialises correctly based on platform', (done) => {
-    log.init()
+    log.init(config)
       .then((result) => {
         expect(platform.is).toHaveBeenCalledWith('cordova');
         done();
@@ -41,7 +42,7 @@ describe('File log appender provider', () => {
   });
 
   it('should create a file on initialisation', (done) => {
-    log.init().then(() => {
+    log.init(config).then(() => {
       log.getLogFiles()
         .then((files: Entry[]) => {
           expect(files).toBeDefined();
@@ -56,8 +57,8 @@ describe('File log appender provider', () => {
     // Set the total file size to be well under the rollover size
     FileMock.setFileSize(1);
     // Create three dummy files. Total size will not exceed max allowed
-    FileMock.generateFiles(fileMock.dataDirectory + config.logDir, config.logPrefix, 3);
-    log.init()
+    FileMock.generateFiles(fileMock.dataDirectory + 'logs', 'log', 3);
+    log.init(config)
       .then(() => {
         console.log('TEST: logger finished initialising');
         log.getLogFiles()
@@ -75,10 +76,10 @@ describe('File log appender provider', () => {
 
   it('should cleanup files correctly when maximum size is exceeded', (done) => {
     // Set the file size to be just under the rollover size
-    FileMock.setFileSize(config.totalLogSize - 1);
+    FileMock.setFileSize(5000000 - 1);
     // Create three dummy files. Total size will exceed max allowed
-    FileMock.generateFiles(fileMock.dataDirectory + config.logDir, config.logPrefix, 3);
-    log.init()
+    FileMock.generateFiles(fileMock.dataDirectory + 'logs', 'log', 3);
+    log.init(config)
       .then(() => {
         console.log('TEST: logger finished initialising');
         expect(log.isReady()).toBeTruthy();
@@ -93,10 +94,10 @@ describe('File log appender provider', () => {
 
   it('should cleanup files correctly when single file exceeds maximum size', (done) => {
     // Set the file size to be just over the rollover size
-    FileMock.setFileSize(config.totalLogSize +1);
+    FileMock.setFileSize(5000000 +1);
     // Create three dummy files. Total size will exceed max allowed
-    FileMock.generateFiles(fileMock.dataDirectory + config.logDir, config.logPrefix, 1);
-    log.init()
+    FileMock.generateFiles(fileMock.dataDirectory + 'logs', 'log', 1);
+    log.init(config)
       .then(() => {
         console.log('TEST: logger finished initialising');
         expect(log.isReady()).toBeTruthy();
