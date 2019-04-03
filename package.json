@@ -10,11 +10,13 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "ng build log",
+    "metadata": "cp ./projects/log/src/ionic-log-file-appender.metadata.json ./dist",
     "test": "karma start ./projects/log/test-config/karma.conf.js",
     "test-ci": "karma start ./projects/log/test-config/karma.conf.js --single-run",
     "test-coverage": "karma start ./projects/log/test-config/karma.conf.js --coverage",
-    "publish-package": "npm run build && cd dist && npm publish"
+    "publish-package": "npm run build && npm run metadata && cd dist && npm publish",
+    "local-pack": "npm run build && npm run metadata && cd dist && npm pack"
   },
   "repository": {
     "type": "git",

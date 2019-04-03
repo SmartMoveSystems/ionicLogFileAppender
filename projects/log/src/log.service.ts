@@ -26,50 +26,56 @@ export class LogProvider {
     constructor(private file: File,
                 private platform: Platform,
                 private datePipe: DatePipe) {
-      this.defaultConfig = new LogProviderConfig({
-        enableMetaLogging: false,
-        logToConsole: false,
-        logDateFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
-        fileDateFormat: 'yyyy-MM-dd_HH-mm-ss-SSS',
-        fileMaxLines: 2000,
-        fileMaxSize: 1000000,
-        totalLogSize: 5000000,
-        baseDir: this.file.dataDirectory,
-        logDir: 'logs',
-        logPrefix: 'log',
-        devMode: false
-      });
-      this.config = this.defaultConfig;
+        this.defaultConfig = new LogProviderConfig({
+            enableMetaLogging: false,
+            logToConsole: false,
+            logDateFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
+            fileDateFormat: 'yyyy-MM-dd_HH-mm-ss-SSS',
+            fileMaxLines: 2000,
+            fileMaxSize: 1000000,
+            totalLogSize: 5000000,
+            baseDir: null,
+            logDir: 'logs',
+            logPrefix: 'log',
+            devMode: false
+        });
+        this.config = this.defaultConfig;
     }
 
     /**
      * Initializes the file logger
      */
     init(configuration: ILogProviderConfig): Promise<any> {
-
-      this.config = new LogProviderConfig(configuration);
-      // Any configuration not specified will take the defaults
-      this.config.merge(this.defaultConfig);
-      this.debug_metaLog('LogProvider initialised with configuration: ' + JSON.stringify(this.config));
-      this.fileLoggerReady = false;
-        this.debug_metaLog('Initialising file logger');
-        this.log('Initialising file logger');
-        if (!this.platform.is('cordova'))
-        {
-            this.debug_metaLog('Not initialising file logger as the it is not supported by the platform ' + this.platform.url());
-            this.initFailed = true;
-            return Promise.resolve();
-        }
-        this.debug_metaLog('Data directory: ' + this.config.baseDir);
-        return this.file.checkDir(this.config.baseDir, this.config.logDir)
+        return this.platform.ready()
             .then(() => {
-                this.debug_metaLog('Found logging directory');
-                return this.initLogFile();
-            })
-            .catch(err => {
-                this.debug_metaLog('Could not find logging directory: ' + JSON.stringify(err));
-                return this.createLogDir();
-            });
+                this.config = new LogProviderConfig(configuration);
+                // Any configuration not specified will take the defaults
+                this.config.merge(this.defaultConfig);
+                if (!this.config.baseDir) {
+                    // Can only initialise this after platform is ready
+                    this.config.baseDir = this.file.dataDirectory;
+                }
+                this.debug_metaLog('LogProvider initialised with configuration: ' + JSON.stringify(this.config));
+                this.fileLoggerReady = false;
+                this.debug_metaLog('Initialising file logger');
+                this.log('Initialising file logger');
+                if (!this.platform.is('cordova'))
+                {
+                    this.debug_metaLog('Not initialising file logger as the it is not supported by the platform ' + this.platform.url());
+                    this.initFailed = true;
+                    return Promise.resolve();
+                }
+                this.debug_metaLog('Data directory: ' + this.config.baseDir);
+                return this.file.checkDir(this.config.baseDir, this.config.logDir)
+                    .then(() => {
+                        this.debug_metaLog('Found logging directory');
+                        return this.initLogFile();
+                    })
+                    .catch(err => {
+                        this.debug_metaLog('Could not find logging directory: ' + JSON.stringify(err));
+                        return this.createLogDir();
+                    });
+        });
     }
 
     isReady(): boolean {
