@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "ng build log",
-    "metadata": "cp ./projects/log/src/ionic-log-file-appender.metadata.json ./dist",
+    "metadata": "cp ./projects/log/src/ionic-log-file-appender.metadata.json ./dist && cp ./README.md ./dist",
     "test": "karma start ./projects/log/test-config/karma.conf.js",
     "test-ci": "karma start ./projects/log/test-config/karma.conf.js --single-run",
     "test-coverage": "karma start ./projects/log/test-config/karma.conf.js --coverage",
